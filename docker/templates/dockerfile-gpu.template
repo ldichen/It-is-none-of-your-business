@@ -1,0 +1,43 @@
+FROM {base_image}
+
+WORKDIR /app
+
+# 安装系统依赖（包含地理空间库和CUDA支持）
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    build-essential \
+    pkg-config \
+    wget \
+    curl \
+    libgdal-dev \
+    gdal-bin \
+    python3-gdal \
+    libproj-dev \
+    libgeos-dev \
+    libhdf5-dev \
+    libnetcdf-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置 GDAL 环境变量
+ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
+ENV C_INCLUDE_PATH=/usr/include/gdal
+ENV GDAL_DATA=/usr/share/gdal
+
+# 安装PyTorch GPU版本
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# 复制requirements并安装依赖
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 安装inoyb框架
+RUN pip install --no-cache-dir inoyb
+
+# 复制项目文件
+COPY gogogo.py mc.json ./
+COPY model/ ./model/
+{examples_copy}
+
+# 启动命令
+CMD ["python", "gogogo.py"]
