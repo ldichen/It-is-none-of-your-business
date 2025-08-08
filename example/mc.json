@@ -1,0 +1,71 @@
+{
+  "model_info": {
+    "name": "prithvi_eo_v1_100",
+    "description": "This model is based on the Swin Transformer architecture and is designed for time-series reconstruction of remote sensing imagery. As part of the PrithviMAE family, it is specifically optimized for Earth observation data. The model leverages a self-supervised masked autoencoding approach and has been pre-trained on large-scale global satellite datasets. It can process GeoTIFF inputs, reconstruct missing regions in remote sensing time series, and output restored images. This makes it suitable for applications such as land cover monitoring and environmental change analysis.",
+    "version": "1.0.0"
+  },
+  "inputs": {
+    "first_image": {
+      "type": "file",
+      "file_types": [".tif", ".tiff"],
+      "description": "HLS GeoTIFF image at the first timestamp, including 6 reflectance bands (Blue, Green, Red, Narrow NIR, SWIR, SWIR 2).",
+      "required": true
+    },
+    "second_image": {
+      "type": "file",
+      "file_types": [".tif", ".tiff"],
+      "description": "HLS GeoTIFF image at the second timestamp, with the same bands as image1, used for temporal reconstruction.",
+      "required": false
+    },
+    "third_image": {
+      "type": "file",
+      "file_types": [".tif", ".tiff"],
+      "description": "HLS GeoTIFF image at the third timestamp, representing a later observation to support missing data reconstruction.",
+      "required": false
+    }
+  },
+  "outputs": {
+    "mask_t0": {
+      "type": "file",
+      "file_types": [".tif", ".tiff"],
+      "bands": [3, 2, 1],
+      "description": "Binary mask indicating which patches in image1 were masked and reconstructed.",
+      "required": true
+    },
+    "mask_t1": {
+      "type": "file",
+      "file_types": [".tif", ".tiff"],
+      "bands": [3, 2, 1],
+      "description": "Binary mask indicating which patches in image2 were masked and reconstructed.",
+      "required": false
+    },
+    "mask_t2": {
+      "type": "file",
+      "file_types": [".tif", ".tiff"],
+      "bands": [3, 2, 1],
+      "description": "Binary mask indicating which patches in image3 were masked and reconstructed.",
+      "required": false
+    },
+    "predicted_t0": {
+      "type": "geodata",
+      "file_types": [".tif", ".tiff"],
+      "bands": [3, 2, 1],
+      "description": "Reconstructed version of image1, with missing regions predicted using masked autoencoding.",
+      "required": true
+    },
+    "predicted_t1": {
+      "type": "geodata",
+      "file_types": [".tif", ".tiff"],
+      "bands": [3, 2, 1],
+      "description": "Reconstructed version of image2, with missing regions predicted using masked autoencoding.",
+      "required": false
+    },
+    "predicted_t2": {
+      "type": "geodata",
+      "file_types": [".tif", ".tiff"],
+      "bands": [3, 2, 1],
+      "description": "Reconstructed version of image3, with missing regions predicted using masked autoencoding.",
+      "required": false
+    }
+  }
+}
