@@ -1,0 +1,66 @@
+FROM {base_image}
+
+# 创建非root用户（修复安全警告）
+ARG APP_USER=inoyb
+ARG APP_USER_UID=1000
+ARG APP_USER_GID=1000
+RUN groupadd -g $APP_USER_GID $APP_USER && \
+    useradd -m -u $APP_USER_UID -g $APP_USER_GID $APP_USER
+
+WORKDIR /app
+
+# 安装系统依赖（修复libarchive问题）
+RUN apt-get update && apt-get install -y \
+    libarchive13 \
+    libarchive-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 修复libmamba求解器问题，强制使用classic求解器
+RUN conda config --set solver classic && \
+    conda config --add channels conda-forge && \
+    conda config --set channel_priority strict
+
+# 安装mamba（更快的conda替代品）
+RUN conda install -n base -c conda-forge mamba && \
+    mamba clean -afy
+
+# 使用mamba安装地理空间相关依赖
+RUN mamba install -y -c conda-forge \
+    gdal=3.6.4 \
+    rasterio=1.3.8 \
+    proj \
+    numpy && \
+    mamba clean -afy
+
+# 安装PyTorch GPU版本 (使用conda安装可以更好地处理CUDA依赖)
+RUN conda install -y pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia && \
+    conda clean -afy
+
+# 复制requirements并安装Python依赖
+COPY requirements.txt .
+
+# 安装uv包管理器（更快的pip替代品）
+RUN mamba install -y -c conda-forge uv && mamba clean -afy
+
+# 使用uv安装Python依赖（比pip更快）
+RUN uv pip install --system --no-cache -r requirements.txt
+
+# 安装inoyb框架
+RUN pip install --no-cache-dir inoyb
+
+# 复制项目文件并设置正确权限
+COPY --chown=$APP_USER:$APP_USER gogogo.py mc.json ./
+COPY --chown=$APP_USER:$APP_USER model/ ./model/
+{examples_copy}
+
+# 设置工作目录权限
+RUN chown -R $APP_USER:$APP_USER /app
+
+# 切换到非root用户运行
+USER $APP_USER
+
+# 暴露Gradio默认端口
+EXPOSE 7860
+
+# 启动命令
+CMD ["python", "gogogo.py"]
