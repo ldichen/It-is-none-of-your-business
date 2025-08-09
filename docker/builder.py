@@ -146,7 +146,11 @@ class DockerBuilder:
             cli_base_image=base_image_override,
         )
 
-        examples_copy = "COPY --chown=$APP_USER:$APP_USER examples/ ./examples/" if has_examples else ""
+        examples_copy = (
+            "COPY --chown=$APP_USER:$APP_USER examples/ ./examples/"
+            if has_examples
+            else ""
+        )
 
         # 日志输出
         if resolved_base_image != original_base_image:
@@ -257,6 +261,11 @@ class DockerBuilder:
         model_name = model_info["name"]
         if not isinstance(model_name, str) or not model_name.strip():
             raise ValueError("❌ mc.json中model_info.name必须是非空字符串")
+        
+        # 验证模型名称长度不超过27个字符
+        if len(model_name) > 27:
+            raise ValueError(f"❌ mc.json中model_info.name长度不能超过27个字符，当前长度：{len(model_name)}")
+            
 
         logger.info(f"✅ 项目结构验证通过")
         logger.info(f"   模型名称: {model_name}")
@@ -845,14 +854,16 @@ class DockerBuilder:
             logger.error(f"清理缓存失败: {e}")
             return False
 
-    def export_image(self, image_name: str, output_path: str = None, export_dir: str = None) -> bool:
+    def export_image(
+        self, image_name: str, output_path: str = None, export_dir: str = None
+    ) -> bool:
         """将镜像导出为tar包
-        
+
         Args:
             image_name: 镜像名称 (如: inoyb/model-name:tag)
             output_path: 输出文件路径 (如: model.tar)，为空时自动生成
             export_dir: 导出目录路径，默认为当前目录
-            
+
         Returns:
             bool: 导出是否成功
         """
@@ -863,7 +874,7 @@ class DockerBuilder:
             except Exception:
                 logger.error(f"镜像不存在: {image_name}")
                 return False
-            
+
             # 设置导出目录，默认为当前目录
             if export_dir:
                 export_directory = Path(export_dir)
@@ -871,58 +882,60 @@ class DockerBuilder:
                 export_directory.mkdir(parents=True, exist_ok=True)
             else:
                 export_directory = Path(".")  # 当前目录
-            
+
             # 生成输出文件名
             if not output_path:
                 # 从镜像名生成文件名: inoyb/model-name:tag -> model-name_tag.tar
-                clean_name = image_name.replace("inoyb/", "").replace(":", "_").replace("/", "_")
+                clean_name = (
+                    image_name.replace("inoyb/", "").replace(":", "-").replace("/", "_")
+                )
                 filename = f"{clean_name}.tar"
             else:
                 filename = output_path
                 # 确保输出路径有.tar扩展名
-                if not filename.endswith('.tar'):
-                    filename += '.tar'
-            
+                if not filename.endswith(".tar"):
+                    filename += ".tar"
+
             # 组合完整路径
             output_file = export_directory / filename
-            
+
             logger.info(f"📦 开始导出镜像: {image_name}")
             logger.info(f"   输出文件: {output_file.absolute()}")
-            
+
             # 导出镜像
-            with open(output_file, 'wb') as f:
+            with open(output_file, "wb") as f:
                 # 使用低级API导出，支持进度显示
                 image_data = self.client.api.get_image(image_name)
-                
+
                 total_size = 0
                 chunk_count = 0
-                
+
                 for chunk in image_data:
                     f.write(chunk)
                     total_size += len(chunk)
                     chunk_count += 1
-                    
+
                     # 每100个chunk显示一次进度
                     if chunk_count % 100 == 0:
                         size_mb = total_size / (1024 * 1024)
-                        print(f"   📥 已导出: {size_mb:.1f} MB", end='\r')
-            
+                        print(f"   📥 已导出: {size_mb:.1f} MB", end="\r")
+
             # 获取最终文件大小
             final_size = output_file.stat().st_size
             size_mb = final_size / (1024 * 1024)
-            
+
             logger.info(f"✅ 镜像导出成功!")
             logger.info(f"   📁 文件路径: {output_file.absolute()}")
             logger.info(f"   📊 文件大小: {size_mb:.1f} MB")
-            
+
             # 显示使用提示
             print(f"\n💡 使用方法:")
             print(f"   📤 传输文件: scp {output_file.name} user@server:/path/")
             print(f"   📥 加载镜像: docker load < {output_file.name}")
             print(f"   📥 或者: docker load -i {output_file.name}")
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(f"镜像导出失败: {e}")
             return False

@@ -28,11 +28,7 @@ def _print_images_table(images):
 
     for img in images:
         # 处理镜像名称（移除inoyb/前缀）
-        tag = (
-            img["name"].replace("inoyb/", "")
-            if img["name"].startswith("inoyb/")
-            else img["name"]
-        )
+        tag = img["name"]
 
         # 格式化大小
         size_bytes = img.get("size", 0)
@@ -450,27 +446,27 @@ def cmd_run(args):
     """运行Docker镜像"""
     try:
         runner = ContainerRunner()
-        
+
         # 解析环境变量
         env_vars = {}
-        if hasattr(args, 'env') and args.env:
+        if hasattr(args, "env") and args.env:
             for env_pair in args.env:
-                if '=' in env_pair:
-                    key, value = env_pair.split('=', 1)
+                if "=" in env_pair:
+                    key, value = env_pair.split("=", 1)
                     env_vars[key] = value
                 else:
                     print(f"⚠️  忽略无效的环境变量格式: {env_pair}")
-        
+
         # 解析卷挂载
         volumes = {}
-        if hasattr(args, 'volume') and args.volume:
+        if hasattr(args, "volume") and args.volume:
             for volume_pair in args.volume:
-                if ':' in volume_pair:
-                    host_path, container_path = volume_pair.split(':', 1)
+                if ":" in volume_pair:
+                    host_path, container_path = volume_pair.split(":", 1)
                     volumes[host_path] = container_path
                 else:
                     print(f"⚠️  忽略无效的卷挂载格式: {volume_pair}")
-        
+
         runner.run(
             image_name=args.image,
             port=args.port,
@@ -482,7 +478,7 @@ def cmd_run(args):
             volumes=volumes,
             follow_logs=not args.daemon,
         )
-        
+
     except ImportError as e:
         print(f"❌ 依赖缺失: {e}")
         print("💡 请安装Docker Python库: pip install docker>=7.0.0")
@@ -610,15 +606,21 @@ def main():
     check_parser.add_argument("--path", default=".", help="项目路径 (默认: 当前目录)")
     check_parser.set_defaults(func=cmd_check)
 
-    # serve命令 
+    # serve命令
     serve_parser = subparsers.add_parser(
         "serve", help="本地运行服务", description="在本地启动gogogo.py服务"
     )
     serve_parser.add_argument("--path", default=".", help="项目路径 (默认: 当前目录)")
-    serve_parser.add_argument("--port", type=int, default=7860, help="服务端口 (默认: 7860)")
-    serve_parser.add_argument("--host", default="0.0.0.0", help="绑定主机 (默认: 0.0.0.0)")
+    serve_parser.add_argument(
+        "--port", type=int, default=7860, help="服务端口 (默认: 7860)"
+    )
+    serve_parser.add_argument(
+        "--host", default="0.0.0.0", help="绑定主机 (默认: 0.0.0.0)"
+    )
     serve_parser.add_argument("--reload", action="store_true", help="文件变更自动重载")
-    serve_parser.add_argument("--dev", action="store_true", help="开发模式 (等同--reload)")
+    serve_parser.add_argument(
+        "--dev", action="store_true", help="开发模式 (等同--reload)"
+    )
     serve_parser.add_argument("--open", action="store_true", help="启动后打开浏览器")
     serve_parser.add_argument("--verbose", action="store_true", help="详细日志输出")
     serve_parser.set_defaults(func=cmd_serve)
@@ -628,13 +630,21 @@ def main():
         "run", help="运行Docker镜像", description="启动Docker镜像容器"
     )
     run_parser.add_argument("image", help="Docker镜像名 (如: inoyb/my-model:abc123)")
-    run_parser.add_argument("--port", type=int, default=7860, help="端口映射 (默认: 7860)")
+    run_parser.add_argument(
+        "--port", type=int, default=7860, help="端口映射 (默认: 7860)"
+    )
     run_parser.add_argument("-d", "--daemon", action="store_true", help="后台运行")
-    run_parser.add_argument("--rm", action="store_true", default=True, help="容器退出后自动删除")
-    run_parser.add_argument("-it", "--interactive", action="store_true", help="交互模式")
+    run_parser.add_argument(
+        "--rm", action="store_true", default=True, help="容器退出后自动删除"
+    )
+    run_parser.add_argument(
+        "-it", "--interactive", action="store_true", help="交互模式"
+    )
     run_parser.add_argument("--name", help="容器名称")
     run_parser.add_argument("--env", action="append", help="环境变量 (格式: KEY=VALUE)")
-    run_parser.add_argument("--volume", action="append", help="卷挂载 (格式: host_path:container_path)")
+    run_parser.add_argument(
+        "--volume", action="append", help="卷挂载 (格式: host_path:container_path)"
+    )
     run_parser.set_defaults(func=cmd_run)
 
     # build命令
