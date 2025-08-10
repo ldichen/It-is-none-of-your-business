@@ -26,6 +26,7 @@ RUN conda install -n base -c conda-forge mamba && \
 
 # 使用mamba安装地理空间相关依赖
 RUN mamba install -y -c conda-forge \
+    sqlite >=3.37 \
     gdal \
     rasterio && \
     mamba clean -afy

@@ -52,10 +52,12 @@ class GradioService:
         self.service_handler = ModelServiceHandler()
         self.folder_browser = FolderBrowserGenerator()
         self.preview_generator = PreviewGenerator()
-        
+
         # 初始化隔离执行器
-        self.isolated_executor = IsolatedModelExecutor(max_workers=5, large_file_threshold=200 * 1024 * 1024)
-        
+        self.isolated_executor = IsolatedModelExecutor(
+            max_workers=5, large_file_threshold=200 * 1024 * 1024
+        )
+
         # 启动时清空全局预览目录（用于向后兼容）和清理旧工作空间
         # 注意：现在主要使用隔离工作空间中的preview，全局目录主要用于向后兼容
         self.preview_generator.clear_preview_dir()
@@ -136,8 +138,10 @@ class GradioService:
             gr.Markdown("---")  # 分隔线
 
             # 中部：输入输出区域
-            input_components, output_components, preview_components = self.layout_manager.create_layout(
-                input_fields, output_fields, layout_type
+            input_components, output_components, preview_components = (
+                self.layout_manager.create_layout(
+                    input_fields, output_fields, layout_type
+                )
             )
 
             # 执行按钮和状态显示
@@ -150,7 +154,9 @@ class GradioService:
 
             # 绑定事件
             submit_btn.click(
-                fn=self._model_execution_wrapper(input_fields, output_fields, preview_components),
+                fn=self._model_execution_wrapper(
+                    input_fields, output_fields, preview_components
+                ),
                 inputs=input_components,
                 outputs=output_components + preview_components + [status_box],
             )
@@ -163,7 +169,10 @@ class GradioService:
         return demo
 
     def _model_execution_wrapper(
-        self, input_fields: List[Dict], output_fields: List[Dict], preview_components: List[Any]
+        self,
+        input_fields: List[Dict],
+        output_fields: List[Dict],
+        preview_components: List[Any],
     ):
         """模型执行包装器"""
 
@@ -171,41 +180,44 @@ class GradioService:
             # 检查输入参数数量
             if len(input_values) != len(input_fields):
                 error_msg = f"❌ 输入参数数量不匹配：期望{len(input_fields)}个，实际{len(input_values)}个"
-                return [None] * len(output_fields) + [None] * len(preview_components) + [
-                    gr.update(value=error_msg, visible=True)
-                ]
+                return (
+                    [None] * len(output_fields)
+                    + [None] * len(preview_components)
+                    + [gr.update(value=error_msg, visible=True)]
+                )
 
             # 验证必填字段
             for field_info, value in zip(input_fields, input_values):
                 if field_info["required"] and (value is None or value == ""):
                     error_msg = f"❌ 必填字段 '{field_info['field_name']}' 不能为空"
-                    return [None] * len(output_fields) + [None] * len(preview_components) + [
-                        gr.update(value=error_msg, visible=True)
-                    ]
+                    return (
+                        [None] * len(output_fields)
+                        + [None] * len(preview_components)
+                        + [gr.update(value=error_msg, visible=True)]
+                    )
 
             try:
                 # 使用隔离执行器执行模型
                 logger.info("开始并发模型执行...")
-                
+
                 # 构建命令模板（从用户handler获取）
                 user_cmd = self.service_handler.user_handler(*input_values)
                 if isinstance(user_cmd, (list, tuple)):
                     cmd_template = list(user_cmd)
                 else:
                     cmd_template = None  # 使用默认模板
-                
+
                 # 在隔离工作空间中执行
                 isolated_output_dir = self.isolated_executor.execute_model_isolated(
-                    inputs=list(input_values),
-                    cmd_template=cmd_template
+                    inputs=list(input_values), cmd_template=cmd_template
                 )
-                
+
                 logger.info("隔离执行完成，输出目录: %s", isolated_output_dir)
-                
+
                 # 使用GradioModelExecutor收集输出文件（从隔离目录）
                 original_output_dir = self.service_handler.model_executor.output_dir
                 self.service_handler.model_executor.output_dir = isolated_output_dir
-                
+
                 try:
                     outputs = self.service_handler.model_executor.collect_outputs()
                 finally:
@@ -222,10 +234,12 @@ class GradioService:
                 # 处理不同类型的输出（参数、文件、文件夹）
                 processed_outputs = []
                 preview_updates = []
-                
-                for i, (output, field_info) in enumerate(zip(output_files, output_fields)):
+
+                for i, (output, field_info) in enumerate(
+                    zip(output_files, output_fields)
+                ):
                     field_type = field_info.get("type", "file")
-                    
+
                     if field_type == "param":
                         # 参数类型：直接传递值给Gradio组件
                         processed_outputs.append(output)
@@ -250,19 +264,21 @@ class GradioService:
                         if output and os.path.exists(str(output)):
                             # 对于存在的文件，确保使用正确的格式以支持下载
                             processed_outputs.append(output)
-                            
+
                             # 只对 geodata 类型生成预览
                             if field_info.get("type") == "geodata":
                                 # 获取bands配置
                                 bands_config = field_info.get("bands", [3, 2, 1])
                                 # 生成preview（在隔离工作空间中）
                                 preview_path = self.preview_generator.generate_preview(
-                                    str(output), 
+                                    str(output),
                                     bands_config=bands_config,
-                                    workspace_dir=isolated_output_dir
+                                    workspace_dir=isolated_output_dir,
                                 )
                                 if preview_path and os.path.exists(preview_path):
-                                    preview_updates.append(gr.update(value=preview_path, visible=True))
+                                    preview_updates.append(
+                                        gr.update(value=preview_path, visible=True)
+                                    )
                                 else:
                                     preview_updates.append(gr.update(visible=False))
                             else:
@@ -276,26 +292,31 @@ class GradioService:
                     processed_outputs.append(None)
                 while len(preview_updates) < len(preview_components):
                     preview_updates.append(gr.update(visible=False))
-                
-                return processed_outputs + preview_updates + [gr.update(value="✅ 模型运行完成！", visible=True)]
+
+                return (
+                    processed_outputs
+                    + preview_updates
+                    + [gr.update(value="✅ 模型运行完成！", visible=True)]
+                )
 
             except Exception as e:
                 error_msg = f"❌ 模型运行失败：{str(e)}"
                 logger.error("模型运行过程中发生错误: %s", str(e))
-                
+
                 # 执行失败时清空全局预览目录（隔离工作空间会自动清理）
                 self.preview_generator.clear_preview_dir()
-                
+
                 # 失败时隐藏所有输出组件
                 failed_outputs = [None] * len(output_fields)
                 failed_previews = [gr.update(visible=False)] * len(preview_components)
-                
-                return failed_outputs + failed_previews + [
-                    gr.update(value=error_msg, visible=True)
-                ]
+
+                return (
+                    failed_outputs
+                    + failed_previews
+                    + [gr.update(value=error_msg, visible=True)]
+                )
 
         return wrapper
-    
 
     def _setup_signal_handlers(self):
         """设置信号处理程序"""
@@ -340,6 +361,7 @@ class GradioService:
 
         # 启动参数
         launch_params = {
+            "server_name": "0.0.0.0",
             "server_port": self.server_port,
             "share": False,
             "inbrowser": False,
@@ -357,8 +379,10 @@ class GradioService:
         try:
             # 启用Gradio队列支持并发
             logger.info("启用Gradio队列支持并发...")
-            demo.queue(max_size=50, default_concurrency_limit=5)  # 队列最大50个请求，默认并发5个
-            
+            demo.queue(
+                max_size=50, default_concurrency_limit=5
+            )  # 队列最大50个请求，默认并发5个
+
             demo.launch(**launch_params)
             logger.info("服务已成功启动！")
             logger.info("访问地址: http://127.0.0.1:%s", self.server_port)

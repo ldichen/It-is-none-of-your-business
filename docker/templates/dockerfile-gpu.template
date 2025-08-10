@@ -26,10 +26,9 @@ RUN conda install -n base -c conda-forge mamba && \
 
 # 使用mamba安装地理空间相关依赖
 RUN mamba install -y -c conda-forge \
-    gdal=3.6.4 \
-    rasterio=1.3.8 \
-    proj \
-    numpy && \
+    sqlite >=3.37 \
+    gdal \
+    rasterio && \
     mamba clean -afy
 
 # 安装PyTorch GPU版本 (使用conda安装可以更好地处理CUDA依赖)
